@@ -1,0 +1,363 @@
+@import "tailwindcss";
+@import "@fontsource/public-sans/latin-400.css";
+@import "@fontsource/public-sans/latin-500.css";
+@import "@fontsource/public-sans/latin-600.css";
+@import "@fontsource/public-sans/latin-700.css";
+
+/* short: laptop and desktop windows with little height, e.g. 1280 x 650 at 150% scaling */
+@custom-variant short (@media (min-width: 768px) and (max-height: 760px));
+
+/*
+  ThryveMS design tokens, "ink on paper".
+  Paper is the page, sheet is the card, ink is the text, one accent (indigo) for actions.
+  Status colours are only used for status: done, in progress, due soon, overdue, draft.
+*/
+
+:root {
+  --radius: 8px;
+
+  /* surfaces */
+  --background: #f5f6f7; /* paper */
+  --foreground: #18202b; /* ink */
+  --card: #ffffff; /* sheet */
+  --card-foreground: #18202b;
+  --popover: #ffffff;
+  --popover-foreground: #18202b;
+
+  /* actions */
+  --primary: #2b3a9e;
+  --primary-hover: #1f2a78;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0f2;
+  --secondary-foreground: #18202b;
+  --accent: #eceefb;
+  --accent-foreground: #2b3a9e;
+  --muted: #eef0f2;
+  --muted-foreground: #4a5463; /* ink soft */
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+
+  /* rules */
+  --border: #e2e5e9;
+  --rule-soft: #eef0f2;
+  --input: #cdd2d8;
+  --ring: #2b3a9e;
+
+  /* status */
+  --done: #17734a;
+  --done-tint: #e7f4ed;
+  --progress: #2b3a9e;
+  --progress-tint: #eceefb;
+  --soon: #8f5200;
+  --soon-tint: #fbf1e1;
+  --overdue: #b3261e;
+  --overdue-tint: #fbeae8;
+  --draft: #4a5463;
+  --draft-tint: #eef0f2;
+
+  /* the dark platform console */
+  --console: #18202b;
+  --console-raised: #2f3a49;
+  --console-text: #b7beca;
+
+  /* surfaces and helpers */
+  --hover: #fafafb;
+  --highlight: #f6f7fd;
+  --overlay: rgb(24 32 43 / 0.4);
+  --faint: #8a93a1;
+  --destructive-hover: #8f1d17;
+  --info-border: #cfd4f5;
+  --done-border: #c5e3d3;
+  --soon-border: #f0ddb8;
+  --overdue-border: #f2c9c5;
+  --soon-bar: #d99a2b;
+  --track-ok: #9fd3b6;
+  --track-soon: #f0c27a;
+  --track-late: #e2877e;
+  --soon-strong: #f7e6c8;
+  --overdue-strong: #f6d5d1;
+  --scrollbar-on: rgb(24 32 43 / 0.35);
+
+  /* sidebar (Settings › Branding can change these) */
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-muted: var(--muted-foreground);
+  --sidebar-hover: var(--secondary);
+  --sidebar-active: var(--accent);
+  --sidebar-active-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --logo-tile: var(--foreground);
+  --logo-tile-foreground: var(--background);
+
+  --cover-slate: #eef1f5;
+  --cover-blue: #e1e9fb;
+  --cover-green: #e2f3e8;
+  --cover-amber: #fbf0d9;
+  --cover-rose: #fbe5e8;
+  --cover-violet: #ece8fb;
+  color-scheme: light;
+}
+
+/* Dark view. Brand colours are adjusted for it in lib/theme.ts. */
+:root.dark {
+  --background: #0f141a;
+  --foreground: #e7eaef;
+  --card: #171d25;
+  --card-foreground: #e7eaef;
+  --popover: #1c232d;
+  --popover-foreground: #e7eaef;
+  --secondary: #232b36;
+  --secondary-foreground: #e7eaef;
+  --muted: #232b36;
+  --muted-foreground: #9ba5b3;
+  --destructive: #e5534b;
+  --destructive-foreground: #ffffff;
+  --destructive-hover: #c73e36;
+
+  --border: #2a3340;
+  --rule-soft: #212934;
+  --input: #3a4553;
+
+  --done: #4cc38a;
+  --done-tint: #13281f;
+  --soon: #e3a33b;
+  --soon-tint: #2b2213;
+  --overdue: #f2766b;
+  --overdue-tint: #321a18;
+  --draft: #9ba5b3;
+  --draft-tint: #232b36;
+
+  --hover: #1b222b;
+  --overlay: rgb(0 0 0 / 0.6);
+  --faint: #6c7785;
+  --done-border: #1f4a35;
+  --soon-border: #4a3a1c;
+  --overdue-border: #5a2a26;
+  --soon-bar: #c48a2a;
+  --track-ok: #2f7d57;
+  --track-soon: #a87824;
+  --track-late: #a8453d;
+  --soon-strong: #3d3018;
+  --overdue-strong: #4a2320;
+  --scrollbar-on: rgb(231 234 239 / 0.3);
+
+  color-scheme: dark;
+  --cover-slate: #1e2631;
+  --cover-blue: #1b2540;
+  --cover-green: #16291f;
+  --cover-amber: #2e2414;
+  --cover-rose: #2e1a1f;
+  --cover-violet: #241f3a;
+}
+
+@theme inline {
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-rule-soft: var(--rule-soft);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-done: var(--done);
+  --color-done-tint: var(--done-tint);
+  --color-progress: var(--progress);
+  --color-progress-tint: var(--progress-tint);
+  --color-soon: var(--soon);
+  --color-soon-tint: var(--soon-tint);
+  --color-overdue: var(--overdue);
+  --color-overdue-tint: var(--overdue-tint);
+  --color-draft: var(--draft);
+  --color-draft-tint: var(--draft-tint);
+
+  --color-console: var(--console);
+  --color-console-raised: var(--console-raised);
+  --color-console-text: var(--console-text);
+
+  --color-hover: var(--hover);
+  --color-highlight: var(--highlight);
+  --color-overlay: var(--overlay);
+  --color-faint: var(--faint);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-info-border: var(--info-border);
+  --color-done-border: var(--done-border);
+  --color-soon-border: var(--soon-border);
+  --color-overdue-border: var(--overdue-border);
+  --color-soon-bar: var(--soon-bar);
+  --color-track-ok: var(--track-ok);
+  --color-track-soon: var(--track-soon);
+  --color-track-late: var(--track-late);
+  --color-cover-slate: var(--cover-slate);
+  --color-cover-blue: var(--cover-blue);
+  --color-cover-green: var(--cover-green);
+  --color-cover-amber: var(--cover-amber);
+  --color-cover-rose: var(--cover-rose);
+  --color-cover-violet: var(--cover-violet);
+  --color-soon-strong: var(--soon-strong);
+  --color-overdue-strong: var(--overdue-strong);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-logo-tile: var(--logo-tile);
+  --color-logo-tile-foreground: var(--logo-tile-foreground);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+}
+
+/* Scrollbars: hidden until the person scrolls, then fade out (see lib/scrollbars.ts).
+   The thumb colour is a registered property so it can fade smoothly. */
+@property --scrollbar-thumb {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+    transition: --scrollbar-thumb 300ms ease;
+  }
+  .is-scrolling {
+    --scrollbar-thumb: var(--scrollbar-on);
+    transition-duration: 120ms;
+  }
+  /* Safari and older Chromium */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background-color: var(--scrollbar-thumb);
+  }
+
+  * {
+    border-color: var(--border);
+  }
+  /* Responsive scale. Every size in the app is in rem, so the root size scales text and spacing together.
+     Phones keep 16px (readable, and stops iOS zooming into inputs). From tablet up the size grows
+     smoothly from 14px at 1280px wide to 16px at 1600px. Short screens, such as a laptop at 150%
+     scaling (about 1280 x 650), use the compact 14px whatever their width. */
+  html {
+    -webkit-font-smoothing: antialiased;
+    font-size: 16px;
+  }
+  @media (min-width: 768px) {
+    html {
+      font-size: clamp(14px, calc(14px + (100vw - 1280px) / 160), 16px);
+    }
+  }
+  @media (min-width: 768px) and (max-height: 760px) {
+    html {
+      font-size: 14px;
+    }
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+  }
+  /* chevron for native selects */
+  select[data-slot="native-select"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234A5463' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+  }
+  :root.dark select[data-slot="native-select"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239BA5B3' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Only the authorized, frozen audit report is printed; application controls stay off paper. */
+@media print {
+  body:has(.audit-report-print) * { visibility: hidden; }
+  body .audit-report-print, body .audit-report-print * { visibility: visible; }
+  body .audit-report-print {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    color-scheme: light;
+    color: CanvasText;
+    background: Canvas;
+  }
+  .audit-report-print [data-slot="card"], .audit-report-print p, .audit-report-print h2 {
+    color: inherit;
+    background: inherit;
+  }
+  .audit-report-print ul { max-height: none !important; overflow: visible !important; }
+  .audit-report-print article { break-inside: avoid; }
+}
+
+/* Page entrance: when a page opens (from the menu or on refresh) its sections fade in and rise a little,
+   one after another, about 300 ms in all. Bars that show a share grow in from the left. */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.page-enter > * { animation: page-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.page-enter > *:nth-child(2) { animation-delay: 40ms; }
+.page-enter > *:nth-child(3) { animation-delay: 80ms; }
+.page-enter > *:nth-child(4) { animation-delay: 120ms; }
+.page-enter > *:nth-child(5) { animation-delay: 160ms; }
+.page-enter > *:nth-child(n + 6) { animation-delay: 200ms; }
+.grow-x { transform-origin: left center; animation: grow-x 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 150ms both; }
+@keyframes sweep {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+/* the readiness gauge: a mask arc draws the segments left to right */
+.sweep { stroke-dasharray: 100 100; animation: sweep 1100ms cubic-bezier(0.25, 0.8, 0.25, 1) 150ms both; }
+/* staggered entrance for a list; each item sets --i */
+.rise-in { animation: rise-in 360ms cubic-bezier(0.2, 0.7, 0.2, 1) calc(250ms + var(--i, 0) * 60ms) both; }
+.grow-x-stagger { transform-origin: left center; animation: grow-x 800ms cubic-bezier(0.2, 0.7, 0.2, 1) calc(300ms + var(--i, 0) * 70ms) both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter > *, .grow-x, .sweep, .rise-in, .grow-x-stagger { animation: none; }
+}
