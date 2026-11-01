@@ -24,6 +24,7 @@ import { NAV } from "./nav"
 import NotFound from "@/pages/not-found"
 import type { Area } from "@/data/types"
 import { allows, peopleAllowed, personAllowed } from "@/lib/permissions"
+import { HelpMenu, SetupGuideProvider } from "./setup-guide"
 
 /** People you can switch to in the prototype, to see what each role sees. */
 /** Clients that invited the consultant (prototype). */
@@ -241,26 +242,29 @@ export function AppShell() {
   React.useEffect(() => { window.scrollTo(0, 0) }, [pathname])
 
   return (
-    <div className="flex min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-card focus:px-3 focus:py-2">
-        Skip to content
-      </a>
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-8 short:h-14">
-          <MobileNav />
-          <SearchBox />
-          <div className="ml-auto flex items-center gap-1">
-            <RemarksLink />
-            <NotificationBell />
-            <UserMenu />
-          </div>
-        </header>
-        {/* keyed on the page, so its entrance plays each time a page opens */}
-        <main id="main" key={pathname} className="page-enter mx-auto flex w-full max-w-[80rem] flex-1 flex-col gap-6 px-4 pb-16 pt-6 md:px-8 short:gap-4 short:pb-10 short:pt-4">
-          {off ? <ModuleOff area={off} /> : denied ? <NotFound /> : <React.Suspense fallback={<PageLoading />}><Outlet /></React.Suspense>}
-        </main>
+    <SetupGuideProvider>
+      <div className="flex min-h-screen">
+        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-card focus:px-3 focus:py-2">
+          Skip to content
+        </a>
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-8 short:h-14">
+            <MobileNav />
+            <SearchBox />
+            <div className="ml-auto flex items-center gap-1">
+              <HelpMenu />
+              <RemarksLink />
+              <NotificationBell />
+              <UserMenu />
+            </div>
+          </header>
+          {/* keyed on the page, so its entrance plays each time a page opens */}
+          <main id="main" key={pathname} className="page-enter mx-auto flex w-full max-w-[80rem] flex-1 flex-col gap-6 px-4 pb-16 pt-6 md:px-8 short:gap-4 short:pb-10 short:pt-4">
+            {off ? <ModuleOff area={off} /> : denied ? <NotFound /> : <React.Suspense fallback={<PageLoading />}><Outlet /></React.Suspense>}
+          </main>
+        </div>
       </div>
-    </div>
+    </SetupGuideProvider>
   )
 }
