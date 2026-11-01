@@ -26,8 +26,8 @@ jobs:
           git clone --quiet https://github.com/dbauto/afdhlskdfs-iqms-preview.git "$RUNNER_TEMP/thryvems-preview-source"
           git -C "$RUNNER_TEMP/thryvems-preview-source" checkout --quiet --detach "$SOURCE_SHA"
           test "$(git -C "$RUNNER_TEMP/thryvems-preview-source" rev-parse HEAD)" = "$SOURCE_SHA"
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
-          rsync -a --exclude=.git "$RUNNER_TEMP/thryvems-preview-source/" ./
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec rm -rf -- {} +
+          rsync -a --exclude=.git --exclude=.github/workflows/ "$RUNNER_TEMP/thryvems-preview-source/" ./
           test -f AGENTS.md
           test -f app/UI-GUIDELINES.md
           test -f plan/iQMS-Consolidated-Backend-Plan-v3.md
