@@ -21,9 +21,9 @@ test("first sign-in shows the welcome, and the full guide walks from step 1 onto
   const tip = page.getByRole("dialog", { name: "Your company's settings" })
   await expect(tip).toBeVisible()
   await expect(tip).toContainText("Step 1 of 11")
-  await tip.getByRole("button", { name: "Next" }).click()
+  await tip.getByRole("button", { name: "Next", exact: true }).click()
   await expect(page.getByRole("dialog", { name: "Invite your team" })).toBeVisible()
-  await page.getByRole("button", { name: "Next" }).click()
+  await page.getByRole("button", { name: "Next", exact: true }).click()
   await page.getByRole("button", { name: "Done, next step" }).click()
 
   // the full guide carries on to step 2 on its own page
@@ -54,9 +54,9 @@ test("a single step can be chosen from Help and stops at the end of that step", 
 
   await expect(page).toHaveURL(/\/risks/)
   await expect(page.getByRole("dialog", { name: "Add a risk or opportunity" })).toContainText("Step 7 of 11")
-  await page.getByRole("button", { name: "Next" }).click()
-  await page.getByRole("button", { name: "Next" }).click()
-  await page.getByRole("button", { name: "Finish" }).click()
+  await page.getByRole("button", { name: "Next", exact: true }).click()
+  await page.getByRole("button", { name: "Next", exact: true }).click()
+  await page.getByRole("button", { name: "Finish", exact: true }).click()
 
   // one step only: the checklist opens again with that step ticked
   const after = page.getByRole("dialog", { name: /Set up your QMS/ })
