@@ -5,6 +5,7 @@ import { CheckIcon, CircleHelpIcon, LifeBuoyIcon, MapIcon, PlayIcon, RotateCcwIc
 
 import { GUIDE_STEPS, type GuideStep } from "@/data/setup-guide"
 import { useStore } from "@/lib/store"
+import { defaultSettingsAccess } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,9 @@ import {
  * Guided setup for a new company: a welcome on first sign-in, a checklist of the 11 setup steps, and tips shown
  * on the real pages. People can run the full guide in order or pick one step from the checklist, and come back to
  * it from Help in the top bar. The guide only shows and explains; it never creates or changes records.
+ *
+ * Each person sees only the steps whose page their role can open (a process owner without Settings or Audits gets
+ * fewer steps); counts and "Step n of N" follow that list.
  *
  * In the preview, progress is kept in this browser per person. In production it is saved per person on the server,
  * so it follows them across devices.
@@ -56,6 +60,8 @@ interface Saved {
 }
 
 interface GuideApi {
+  /** the steps this person's role can open, in guide order */
+  steps: GuideStep[]
   done: string[]
   run: Run | null
   panelOpen: boolean
@@ -100,7 +106,15 @@ function save(userId: string, s: Saved) {
 }
 
 export function SetupGuideProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useStore()
+  const { user, role, can } = useStore()
+  // same rule as Settings › Users and access: a role's own page list if it has one, otherwise its levels (ADR-045)
+  const steps = React.useMemo(
+    () =>
+      GUIDE_STEPS.filter((s) =>
+        s.area === "Settings" ? (role.settingsPages?.length ? role.settingsPages.includes(s.path) : defaultSettingsAccess(role, "admin")) : can(s.area)
+      ),
+    [can, role]
+  )
   const navigate = useNavigate()
   const [saved, setSaved] = React.useState<Saved>(() => load(user.id))
   const [run, setRun] = React.useState<Run | null>(null)
@@ -127,41 +141,43 @@ export function SetupGuideProvider({ children }: { children: React.ReactNode }) 
       setRun(r)
       if (r) {
         setPanelOpen(false)
-        navigate(GUIDE_STEPS[r.step].path)
+        navigate(steps[r.step].path)
       }
     },
-    [navigate]
+    [navigate, steps]
   )
 
-  const markDone = (step: number) => update((s) => ({ ...s, done: Array.from(new Set([...s.done, GUIDE_STEPS[step].id])) }))
+  const markDone = (step: number) => update((s) => ({ ...s, done: Array.from(new Set([...s.done, steps[step].id])) }))
 
+  const visibleDone = saved.done.filter((id) => steps.some((s) => s.id === id))
   const api: GuideApi = {
-    done: saved.done,
+    steps,
+    done: visibleDone,
     run,
     panelOpen,
     setPanelOpen,
     startFull: (step) => {
-      const first = GUIDE_STEPS.findIndex((s) => !saved.done.includes(s.id))
+      const first = steps.findIndex((s) => !saved.done.includes(s.id))
       go({ mode: "full", step: step ?? (first < 0 ? 0 : first), tip: 0 })
     },
     startStep: (step) => go({ mode: "step", step, tip: 0 }),
     next: () => {
       if (!run) return
-      const step = GUIDE_STEPS[run.step]
+      const step = steps[run.step]
       if (run.tip < step.tips.length - 1) return setRun({ ...run, tip: run.tip + 1 })
       markDone(run.step)
-      if (run.mode === "full" && run.step < GUIDE_STEPS.length - 1) return go({ ...run, step: run.step + 1, tip: 0 })
+      if (run.mode === "full" && run.step < steps.length - 1) return go({ ...run, step: run.step + 1, tip: 0 })
       setRun(null)
       setPanelOpen(true)
     },
     back: () => {
       if (!run) return
       if (run.tip > 0) return setRun({ ...run, tip: run.tip - 1 })
-      if (run.mode === "full" && run.step > 0) go({ ...run, step: run.step - 1, tip: GUIDE_STEPS[run.step - 1].tips.length - 1 })
+      if (run.mode === "full" && run.step > 0) go({ ...run, step: run.step - 1, tip: steps[run.step - 1].tips.length - 1 })
     },
     exit: () => setRun(null),
     resetProgress: () => update((s) => ({ ...s, done: [] })),
-    welcomeOpen: !saved.welcomeSeen && autoWelcome() && !run,
+    welcomeOpen: steps.length > 0 && !saved.welcomeSeen && autoWelcome() && !run,
     closeWelcome: () => update((s) => ({ ...s, welcomeSeen: true })),
   }
 
@@ -181,6 +197,7 @@ type Choice = "full" | "pick" | "later"
 
 function WelcomeDialog() {
   const g = useSetupGuide()
+  const GUIDE_STEPS = g.steps
   const { user } = useStore()
   const [choice, setChoice] = React.useState<Choice>("full")
   const first = user.name.split(" ")[0]
@@ -234,6 +251,7 @@ function WelcomeDialog() {
 
 function GuidePanel() {
   const g = useSetupGuide()
+  const GUIDE_STEPS = g.steps
   const count = g.done.length
   const pct = Math.round((count / GUIDE_STEPS.length) * 100)
   const allDone = count >= GUIDE_STEPS.length
@@ -334,6 +352,7 @@ const TIP_W = 380
 
 function Coach() {
   const g = useSetupGuide()
+  const GUIDE_STEPS = g.steps
   const { pathname } = useLocation()
   const run = g.run!
   const step = GUIDE_STEPS[run.step]
@@ -459,8 +478,10 @@ function Coach() {
 
 export function HelpMenu() {
   const g = useSetupGuide()
+  const GUIDE_STEPS = g.steps
   const navigate = useNavigate()
   const count = g.done.length
+  if (!GUIDE_STEPS.length) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex h-10 cursor-pointer items-center gap-2 rounded-sm px-2.5 text-sm hover:bg-secondary" aria-label={`Help, setup ${count} of ${GUIDE_STEPS.length} done`}>

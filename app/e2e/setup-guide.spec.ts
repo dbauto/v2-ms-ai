@@ -74,3 +74,18 @@ test("Escape leaves the guide and the page stays usable", async ({ page }) => {
   await expect(page.getByRole("dialog", { name: "Your company's settings" })).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Users and access" })).toBeVisible()
 })
+
+test("each person sees only the steps their role can open", async ({ page }) => {
+  await noFonts(page)
+  // Joy Aquino is a process owner: no Settings › Users and access, so no "Your company" step
+  await page.addInitScript(() => localStorage.setItem("iqms.viewAs", "p-ja"))
+  await page.goto("/")
+  await page.getByRole("button", { name: /Help, setup 0 of 10 done/ }).click()
+  await page.getByRole("menuitem", { name: "Choose a step" }).click()
+  const panel = page.getByRole("dialog", { name: /Set up your QMS/ })
+  await expect(panel.getByRole("listitem")).toHaveCount(10)
+  await expect(panel).not.toContainText("Your company")
+  await panel.getByRole("button", { name: "Start full guide" }).click()
+  await expect(page).toHaveURL(/qms\/organization/)
+  await expect(page.getByRole("dialog", { name: "Where you stand" })).toContainText("Step 1 of 10")
+})

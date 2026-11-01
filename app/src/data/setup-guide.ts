@@ -1,6 +1,8 @@
+import type { Area } from "@/data/types"
+
 /**
  * The setup guide: the order a new company sets up its QMS in ThryveMS, from its own settings to corrective action.
- * The same order an auditor follows. Each step opens one page and shows a few tips on that page.
+ * The same order an auditor follows. Steps whose page a person's role can't open are left out for that person. Each step opens one page and shows a few tips on that page.
  *
  * A tip's `target` says which part of the page to highlight. Several targets can be given, separated by " || ";
  * the first one found is used. If none is found the tip shows in the middle of the screen without a highlight.
@@ -20,6 +22,8 @@ export interface GuideTip {
 export interface GuideStep {
   id: string
   title: string
+  /** the area the step's page belongs to; people whose role can't open it don't see the step */
+  area: Area
   /** one line shown in the setup guide list */
   summary: string
   clauses: string
@@ -31,6 +35,7 @@ export interface GuideStep {
 export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "company",
+    area: "Settings",
     title: "Your company",
     summary: "Users, roles, numbering and review routes",
     clauses: "5.3, 7.5.2",
@@ -43,6 +48,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "organization",
+    area: "Organization & Scope",
     title: "Organization & Scope",
     summary: "Context, interested parties, scope, org chart",
     clauses: "4.1–4.3, 5.3",
@@ -55,6 +61,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "policies",
+    area: "Policies",
     title: "Policies",
     summary: "Your quality policy",
     clauses: "5.2",
@@ -66,6 +73,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "processes",
+    area: "Processes",
     title: "Processes",
     summary: "Map how your business works",
     clauses: "4.4",
@@ -78,6 +86,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "documents",
+    area: "Documents",
     title: "Procedures & documents",
     summary: "Import or write your controlled documents",
     clauses: "7.5",
@@ -90,6 +99,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "objectives",
+    area: "Objectives & KPIs",
     title: "Objectives & KPIs",
     summary: "What you aim for and how you measure it",
     clauses: "6.2, 9.1",
@@ -101,6 +111,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "risks",
+    area: "Risks & Opportunities",
     title: "Risks & Opportunities",
     summary: "What could go wrong, or go better",
     clauses: "6.1",
@@ -113,6 +124,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "evidence",
+    area: "Evidence",
     title: "Evidence",
     summary: "Start keeping records of what you do",
     clauses: "7.5.3",
@@ -125,6 +137,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "audits",
+    area: "Audits",
     title: "Audits",
     summary: "Plan your first internal audit",
     clauses: "9.2",
@@ -137,6 +150,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "review",
+    area: "Management Review",
     title: "Management Review",
     summary: "Top management checks how the QMS is doing",
     clauses: "9.3",
@@ -149,6 +163,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "corrective",
+    area: "Corrective Action",
     title: "Corrective Action",
     summary: "Fix problems so they don't come back",
     clauses: "10.2",
