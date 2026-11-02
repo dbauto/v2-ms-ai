@@ -113,7 +113,7 @@ export function FigureCard({ value, label, badge, tone = "draft", icon: Icon, to
 export function FigureGrid({ figures }: { figures: Figure[] }) {
   return (
     // Responds to its own width, not the screen: 4 across when there is room, then 2, then 1.
-    <div className="@container">
+    <div className="@container" data-guide="figures">
       <div className="grid grid-cols-1 gap-4 @[30rem]:grid-cols-2 @[52rem]:grid-cols-4 short:gap-3">
         {figures.map((f) => (
           <FigureCard key={f.label} {...f} />
