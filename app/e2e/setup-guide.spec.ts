@@ -7,14 +7,19 @@ async function noFonts(page: Page) {
 /** the open tip: the guide's dialog that says which step it is on */
 const tip = (page: Page) => page.getByRole("dialog").filter({ hasText: /Step \d+ of \d+/ })
 
-/** click Next through a step until its last tip, then press the last tip's button */
+/**
+ * Click through a step's tips until it ends. A step ends with its last tip's button, or straight after the last tip
+ * that could be shown when the rest are skipped, so stop as soon as the tip is gone and the next page or the checklist shows.
+ */
 async function walkStep(page: Page, last: "Done, next step" | "Finish") {
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 40; i++) {
     const t = tip(page)
-    await expect(t).toBeVisible()
+    await t.or(page.getByRole("dialog", { name: /Set up your QMS/ })).first().waitFor()
+    if (!(await t.isVisible())) return
     const end = t.getByRole("button", { name: last, exact: true })
+    const next = t.getByRole("button", { name: "Next", exact: true })
     if (await end.isVisible()) return end.click()
-    await t.getByRole("button", { name: "Next", exact: true }).click()
+    if (await next.isVisible()) await next.click({ timeout: 3000 }).catch(() => undefined)
   }
   throw new Error("step did not end")
 }
