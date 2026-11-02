@@ -8,18 +8,24 @@ async function noFonts(page: Page) {
 const tip = (page: Page) => page.getByRole("dialog").filter({ hasText: /Step \d+ of \d+/ })
 
 /**
- * Click through a step's tips until it ends. A step ends with its last tip's button, or straight after the last tip
- * that could be shown when the rest are skipped, so stop as soon as the tip is gone and the next page or the checklist shows.
+ * Click through a step's tips until it ends: with its last tip's button, or, when the remaining tips are skipped,
+ * with the checklist opening. Between tips the guide is briefly hidden while the next page opens, so wait for either.
  */
 async function walkStep(page: Page, last: "Done, next step" | "Finish") {
+  const panel = page.getByRole("dialog", { name: /Set up your QMS/ })
   for (let i = 0; i < 40; i++) {
     const t = tip(page)
-    await t.or(page.getByRole("dialog", { name: /Set up your QMS/ })).first().waitFor()
-    if (!(await t.isVisible())) return
+    await expect(t.or(panel).first()).toBeVisible()
+    if (await panel.isVisible()) return
     const end = t.getByRole("button", { name: last, exact: true })
-    const next = t.getByRole("button", { name: "Next", exact: true })
     if (await end.isVisible()) return end.click()
-    if (await next.isVisible()) await next.click({ timeout: 3000 }).catch(() => undefined)
+    const heading = await t.getByRole("heading").innerText().catch(() => "")
+    await t.getByRole("button", { name: "Next", exact: true }).click({ timeout: 3000 }).catch(() => undefined)
+    // wait for the tip to change before looking again
+    await expect(async () => {
+      const now = await tip(page).getByRole("heading").innerText({ timeout: 500 }).catch(() => "")
+      expect(now !== heading || (await panel.isVisible())).toBe(true)
+    }).toPass({ timeout: 10_000 })
   }
   throw new Error("step did not end")
 }
