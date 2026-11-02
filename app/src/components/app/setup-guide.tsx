@@ -171,7 +171,9 @@ export function SetupGuideProvider({ children }: { children: React.ReactNode }) 
       if (run.tip < step.tips.length - 1) return setRun({ ...run, tip: run.tip + 1, dir: 1 })
       markDone(run.step)
       if (run.mode === "full" && run.step < steps.length - 1) return go({ ...run, step: run.step + 1, tip: 0, dir: 1 })
+      // end on the step's own page, not on a practice record or a page that wasn't available
       setRun(null)
+      navigate(step.path)
       setPanelOpen(true)
     },
     back: () => {
