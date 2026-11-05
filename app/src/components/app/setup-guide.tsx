@@ -364,8 +364,55 @@ function findTarget(target: string): HTMLElement | null {
   return null
 }
 
+/** a tab is open when it's selected; anything else counts as open once pressed */
+function isOpen(el: HTMLElement) {
+  return el.getAttribute("role") !== "tab" || el.getAttribute("aria-selected") === "true"
+}
+
+/** press a tab or button the way a pointer does: tabs listen for mouse down, buttons for click */
+function press(el: HTMLElement) {
+  const opts = { bubbles: true, cancelable: true, button: 0, pointerType: "mouse" }
+  el.dispatchEvent(new PointerEvent("pointerdown", opts))
+  el.dispatchEvent(new MouseEvent("mousedown", opts))
+  el.dispatchEvent(new PointerEvent("pointerup", opts))
+  el.dispatchEvent(new MouseEvent("mouseup", opts))
+  if (el.getAttribute("role") !== "tab") el.click()
+}
+
 const PAD = 6
 const TIP_W = 380
+const GAP = 16
+/** height of the sticky top bar, which covers the top of the page */
+const TOP = 72
+
+/** scroll so the part sits just under the top bar when it's taller than half the screen, otherwise only as far as needed */
+function scrollToShow(el: HTMLElement) {
+  const r = el.getBoundingClientRect()
+  const vh = window.innerHeight
+  if (r.top >= TOP + PAD && r.bottom <= vh - PAD && r.height < vh / 2) return
+  window.scrollBy({ top: r.top - TOP - PAD - GAP, behavior: "instant" as ScrollBehavior })
+}
+
+/**
+ * Put the tip next to the highlighted part, never on top of it: below, above, right or left, whichever fits first.
+ * When the part is too big for any of those (a long table or a whole tab), the highlight is cut at the bottom of what
+ * can be shown and the tip sits under it, so the tip still covers nothing it talks about.
+ */
+function placeTip(rect: DOMRect | null, w: number, h: number, vw: number, vh: number): { card: React.CSSProperties; spot?: React.CSSProperties } {
+  const clampX = (x: number) => Math.min(Math.max(16, x), vw - w - 16)
+  const clampY = (y: number) => Math.min(Math.max(TOP + 8, y), vh - h - 16)
+  if (!rect) return { card: { left: (vw - w) / 2, top: Math.max(TOP + 8, (vh - h) / 2) } }
+  const box = { left: rect.left - PAD, top: Math.max(rect.top - PAD, TOP), right: rect.right + PAD, bottom: Math.min(rect.bottom + PAD, vh) }
+  const spot = (b: typeof box): React.CSSProperties => ({ left: b.left, top: b.top, width: b.right - b.left, height: Math.max(0, b.bottom - b.top) })
+  const alignX = rect.width < w ? clampX(rect.right - w) : clampX(rect.left)
+  if (box.bottom + GAP + h <= vh - 16) return { card: { left: alignX, top: box.bottom + GAP }, spot: spot(box) }
+  if (box.top - GAP - h >= TOP + 8) return { card: { left: alignX, top: box.top - GAP - h }, spot: spot(box) }
+  if (box.right + GAP + w <= vw - 16) return { card: { left: box.right + GAP, top: clampY(box.top) }, spot: spot(box) }
+  if (box.left - GAP - w >= 16) return { card: { left: box.left - GAP - w, top: clampY(box.top) }, spot: spot(box) }
+  // too big to sit beside: show the top of the part and put the tip under it
+  const cut = vh - 16 - h - GAP
+  return { card: { left: alignX, top: cut + GAP }, spot: spot({ ...box, bottom: Math.max(box.top + 48, cut) }) }
+}
 
 function Coach() {
   const g = useSetupGuide()
@@ -378,6 +425,16 @@ function Coach() {
   const [searching, setSearching] = React.useState(true)
   const cardRef = React.useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const [cardH, setCardH] = React.useState(0)
+  const [openFailed, setOpenFailed] = React.useState(false)
+  React.useLayoutEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setCardH(el.offsetHeight))
+    ro.observe(el)
+    setCardH(el.offsetHeight)
+    return () => ro.disconnect()
+  })
   const tipPath = tip.path ?? step.path
   const onPage = pathname === tipPath
 
@@ -391,6 +448,7 @@ function Coach() {
   React.useEffect(() => {
     if (!onPage) return
     setSearching(true)
+    setOpenFailed(false)
     setRect(null)
     let el: HTMLElement | null = null
     let opened = !tip.open
@@ -404,19 +462,24 @@ function Coach() {
         return
       }
       if (!opened) {
+        // tabs switch on mouse down, not on click, so press the tab the way a person would, then wait until it's
+        // really the open tab before looking for the part to highlight
         const trigger = findTarget(tip.open!)
-        if (trigger) {
-          trigger.click()
-          opened = true
-        } else if (tries <= 30) return
-        else opened = true
+        if (trigger && isOpen(trigger)) opened = true
+        else if (trigger) {
+          press(trigger)
+          if (tries <= 30) return
+        }
+        if (!opened && tries <= 30) return
+        if (!opened) setOpenFailed(true)
+        opened = true
       }
       el = findTarget(tip.target)
       if (el || tries > 30) {
         window.clearInterval(id)
         setSearching(false)
         if (el) {
-          el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior })
+          scrollToShow(el)
           measure()
         }
       }
@@ -445,27 +508,19 @@ function Coach() {
   const vw = window.innerWidth
   const vh = window.innerHeight
   const w = Math.min(TIP_W, vw - 32)
-  let pos: React.CSSProperties
-  if (!rect) {
-    pos = { left: (vw - w) / 2, top: Math.max(80, vh / 2 - 160) }
-  } else {
-    const below = rect.bottom + PAD + 16
-    const roomBelow = vh - below > 300
-    const roomAbove = rect.top - PAD - 16 > 300
-    const left = Math.min(Math.max(16, rect.width < 500 ? rect.right - w : rect.left + 24), vw - w - 16)
-    pos = roomBelow ? { left, top: below } : roomAbove ? { left, bottom: vh - rect.top + PAD + 16 } : { left: Math.min(Math.max(16, rect.right - w - 24), vw - w - 16), top: Math.max(80, rect.top + 24) }
-  }
+  const place = placeTip(rect, w, cardH, vw, vh)
   const last = run.tip === step.tips.length - 1
   const cta = !last ? "Next" : run.mode === "step" || run.step === GUIDE_STEPS.length - 1 ? "Finish" : "Done, next step"
   const canBack = run.tip > 0 || (run.mode === "full" && run.step > 0)
 
   return createPortal(
     <div className="fixed inset-0 z-[60]" data-guide-overlay>
-      {rect ? (
+      {rect && place.spot ? (
         <div
           aria-hidden="true"
+          data-guide-spot
           className="pointer-events-none fixed rounded-lg shadow-[0_0_0_9999px_var(--overlay)] outline-2 outline-primary transition-all duration-200"
-          style={{ left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 }}
+          style={place.spot}
         />
       ) : (
         <div aria-hidden="true" className="fixed inset-0 bg-overlay" />
@@ -477,8 +532,9 @@ function Coach() {
         aria-modal="true"
         aria-labelledby="guide-tip-title"
         aria-describedby="guide-tip-body"
+        data-guide-open-failed={openFailed || undefined}
         className="fixed flex flex-col gap-2.5 rounded-xl border bg-card p-5 shadow-[0_24px_64px_-24px_rgba(24,32,43,0.35)] outline-none"
-        style={{ ...pos, width: w }}
+        style={{ ...place.card, width: w, visibility: cardH ? "visible" : "hidden" }}
       >
         <div className="flex items-center gap-2.5">
           <GuideMark />
