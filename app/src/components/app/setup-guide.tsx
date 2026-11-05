@@ -52,6 +52,8 @@ interface Run {
   mode: "full" | "step"
   step: number
   tip: number
+  /** which way the person is going, so a tip whose page isn't available is skipped in that direction */
+  dir: 1 | -1
 }
 
 interface Saved {
@@ -72,6 +74,8 @@ interface GuideApi {
   startStep: (step: number) => void
   next: () => void
   back: () => void
+  /** move past a tip whose page or record isn't available */
+  skip: () => void
   exit: () => void
   resetProgress: () => void
   welcomeOpen: boolean
@@ -141,7 +145,7 @@ export function SetupGuideProvider({ children }: { children: React.ReactNode }) 
       setRun(r)
       if (r) {
         setPanelOpen(false)
-        navigate(steps[r.step].path)
+        navigate(steps[r.step].tips[r.tip]?.path ?? steps[r.step].path)
       }
     },
     [navigate, steps]
@@ -158,22 +162,30 @@ export function SetupGuideProvider({ children }: { children: React.ReactNode }) 
     setPanelOpen,
     startFull: (step) => {
       const first = steps.findIndex((s) => !saved.done.includes(s.id))
-      go({ mode: "full", step: step ?? (first < 0 ? 0 : first), tip: 0 })
+      go({ mode: "full", step: step ?? (first < 0 ? 0 : first), tip: 0, dir: 1 })
     },
-    startStep: (step) => go({ mode: "step", step, tip: 0 }),
+    startStep: (step) => go({ mode: "step", step, tip: 0, dir: 1 }),
     next: () => {
       if (!run) return
       const step = steps[run.step]
-      if (run.tip < step.tips.length - 1) return setRun({ ...run, tip: run.tip + 1 })
+      if (run.tip < step.tips.length - 1) return setRun({ ...run, tip: run.tip + 1, dir: 1 })
       markDone(run.step)
-      if (run.mode === "full" && run.step < steps.length - 1) return go({ ...run, step: run.step + 1, tip: 0 })
+      if (run.mode === "full" && run.step < steps.length - 1) return go({ ...run, step: run.step + 1, tip: 0, dir: 1 })
+      // end on the step's own page, not on a practice record or a page that wasn't available
       setRun(null)
+      navigate(step.path)
       setPanelOpen(true)
     },
     back: () => {
       if (!run) return
-      if (run.tip > 0) return setRun({ ...run, tip: run.tip - 1 })
-      if (run.mode === "full" && run.step > 0) go({ ...run, step: run.step - 1, tip: steps[run.step - 1].tips.length - 1 })
+      if (run.tip > 0) return setRun({ ...run, tip: run.tip - 1, dir: -1 })
+      if (run.mode === "full" && run.step > 0) go({ ...run, step: run.step - 1, tip: steps[run.step - 1].tips.length - 1, dir: -1 })
+    },
+    skip: () => {
+      if (!run) return
+      const atStart = run.tip === 0 && (run.mode === "step" || run.step === 0)
+      if (run.dir === -1 && !atStart) return api.back()
+      api.next()
     },
     exit: () => setRun(null),
     resetProgress: () => update((s) => ({ ...s, done: [] })),
@@ -333,6 +345,11 @@ function findTarget(target: string): HTMLElement | null {
     } else if (t.startsWith("card:")) {
       const title = t.slice(5)
       el = Array.from(document.querySelectorAll<HTMLElement>("main [data-slot=card-title]")).find((h) => h.innerText.trim() === title)?.closest("[data-slot=card]") ?? null
+    } else if (t.startsWith("tab:")) {
+      const label = t.slice(4)
+      el = Array.from(document.querySelectorAll<HTMLElement>("main [role=tab]")).find((b) => b.innerText.replace(/\s+/g, " ").trim().startsWith(label)) ?? null
+    } else if (t === "track") {
+      el = document.querySelector("main ol[aria-label=Progress]")
     } else if (t === "figures") {
       el = document.querySelector("main [data-guide=figures]")
     } else {
@@ -360,19 +377,41 @@ function Coach() {
   const [rect, setRect] = React.useState<DOMRect | null>(null)
   const [searching, setSearching] = React.useState(true)
   const cardRef = React.useRef<HTMLDivElement>(null)
-  const onPage = pathname === step.path
+  const navigate = useNavigate()
+  const tipPath = tip.path ?? step.path
+  const onPage = pathname === tipPath
 
-  // find the highlighted part once the page has opened; pages can load lazily, so keep looking for a few seconds
+  // each tip can be on its own page
+  React.useEffect(() => {
+    if (!onPage) navigate(tipPath)
+  }, [onPage, tipPath, navigate])
+
+  // once the page has opened: skip the tip if its record isn't there, open a tab if the tip asks for one, then find the
+  // part to highlight. Pages can load lazily, so keep looking for a few seconds.
   React.useEffect(() => {
     if (!onPage) return
     setSearching(true)
     setRect(null)
     let el: HTMLElement | null = null
+    let opened = !tip.open
     let tries = 0
     const measure = () => el && setRect(el.getBoundingClientRect())
     const id = window.setInterval(() => {
-      el = findTarget(tip.target)
       tries++
+      if (tries > 3 && document.querySelector("main")?.textContent?.includes("This page or record doesn’t exist")) {
+        window.clearInterval(id)
+        g.skip()
+        return
+      }
+      if (!opened) {
+        const trigger = findTarget(tip.open!)
+        if (trigger) {
+          trigger.click()
+          opened = true
+        } else if (tries <= 30) return
+        else opened = true
+      }
+      el = findTarget(tip.target)
       if (el || tries > 30) {
         window.clearInterval(id)
         setSearching(false)
@@ -389,7 +428,7 @@ function Coach() {
       window.removeEventListener("resize", measure)
       window.removeEventListener("scroll", measure, true)
     }
-  }, [onPage, tip.target])
+  }, [onPage, tip.target, tip.open, run.step, run.tip])
 
   // move focus to the tip so keyboard and screen reader users follow along; Esc leaves the guide
   React.useEffect(() => {
@@ -457,14 +496,18 @@ function Coach() {
           {tip.body}
         </p>
         <p className="rounded-sm bg-background px-2.5 py-2 text-xs text-muted-foreground">ISO 9001: {tip.iso}</p>
+        {tip.practice && (
+          <p className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Badge tone="draft">Practice record</Badge>
+            <span>A sample record so you can see this stage. Nothing on it is changed.</span>
+          </p>
+        )}
         <div className="mt-1 flex items-center gap-2">
           <Button variant="ghost" onClick={g.back} disabled={!canBack}>
             Back
           </Button>
-          <span className="mx-auto flex gap-1.5" aria-hidden="true">
-            {step.tips.map((_, i) => (
-              <span key={i} className={cn("size-2 rounded-full", i === run.tip ? "bg-primary" : "bg-input")} />
-            ))}
+          <span className="mx-auto h-1.5 w-20 overflow-hidden rounded-full bg-secondary" aria-hidden="true">
+            <span className="block h-full bg-primary" style={{ width: `${((run.tip + 1) / step.tips.length) * 100}%` }} />
           </span>
           <Button onClick={g.next}>{cta}</Button>
         </div>
