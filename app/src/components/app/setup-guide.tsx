@@ -364,6 +364,21 @@ function findTarget(target: string): HTMLElement | null {
   return null
 }
 
+/** a tab is open when it's selected; anything else counts as open once pressed */
+function isOpen(el: HTMLElement) {
+  return el.getAttribute("role") !== "tab" || el.getAttribute("aria-selected") === "true"
+}
+
+/** press a tab or button the way a pointer does: tabs listen for mouse down, buttons for click */
+function press(el: HTMLElement) {
+  const opts = { bubbles: true, cancelable: true, button: 0, pointerType: "mouse" }
+  el.dispatchEvent(new PointerEvent("pointerdown", opts))
+  el.dispatchEvent(new MouseEvent("mousedown", opts))
+  el.dispatchEvent(new PointerEvent("pointerup", opts))
+  el.dispatchEvent(new MouseEvent("mouseup", opts))
+  if (el.getAttribute("role") !== "tab") el.click()
+}
+
 const PAD = 6
 const TIP_W = 380
 const GAP = 16
@@ -411,6 +426,7 @@ function Coach() {
   const cardRef = React.useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const [cardH, setCardH] = React.useState(0)
+  const [openFailed, setOpenFailed] = React.useState(false)
   React.useLayoutEffect(() => {
     const el = cardRef.current
     if (!el) return
@@ -432,6 +448,7 @@ function Coach() {
   React.useEffect(() => {
     if (!onPage) return
     setSearching(true)
+    setOpenFailed(false)
     setRect(null)
     let el: HTMLElement | null = null
     let opened = !tip.open
@@ -445,12 +462,17 @@ function Coach() {
         return
       }
       if (!opened) {
+        // tabs switch on mouse down, not on click, so press the tab the way a person would, then wait until it's
+        // really the open tab before looking for the part to highlight
         const trigger = findTarget(tip.open!)
-        if (trigger) {
-          trigger.click()
-          opened = true
-        } else if (tries <= 30) return
-        else opened = true
+        if (trigger && isOpen(trigger)) opened = true
+        else if (trigger) {
+          press(trigger)
+          if (tries <= 30) return
+        }
+        if (!opened && tries <= 30) return
+        if (!opened) setOpenFailed(true)
+        opened = true
       }
       el = findTarget(tip.target)
       if (el || tries > 30) {
@@ -510,6 +532,7 @@ function Coach() {
         aria-modal="true"
         aria-labelledby="guide-tip-title"
         aria-describedby="guide-tip-body"
+        data-guide-open-failed={openFailed || undefined}
         className="fixed flex flex-col gap-2.5 rounded-xl border bg-card p-5 shadow-[0_24px_64px_-24px_rgba(24,32,43,0.35)] outline-none"
         style={{ ...place.card, width: w, visibility: cardH ? "visible" : "hidden" }}
       >

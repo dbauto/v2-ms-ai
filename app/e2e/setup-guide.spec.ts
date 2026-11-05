@@ -156,7 +156,7 @@ test("each person sees only the steps their role can open", async ({ page }) => 
   await expect(page.getByRole("dialog", { name: "Where you stand" })).toContainText("Step 1 of 10")
 })
 
-test("no tip covers the part it is about, on any step", async ({ page }) => {
+test("no tip covers the part it is about, and every tab a tip needs opens, on any step", async ({ page }) => {
   test.setTimeout(240_000)
   await noFonts(page)
   await page.goto("/")
@@ -170,6 +170,7 @@ test("no tip covers the part it is about, on any step", async ({ page }) => {
     if (await panel.isVisible()) break
     await expect(t).toHaveCSS("visibility", "visible")
     const heading = (await t.getByRole("heading").innerText()).trim()
+    if ((await t.getAttribute("data-guide-open-failed")) !== null) overlaps.push(`${heading} (tab didn't open)`)
     const spot = page.locator("[data-guide-spot]")
     if (await spot.count()) {
       const a = (await t.boundingBox())!
@@ -188,4 +189,18 @@ test("no tip covers the part it is about, on any step", async ({ page }) => {
     }).toPass({ timeout: 10_000 })
   }
   expect(overlaps).toEqual([])
+})
+
+test("a tip about a tab opens that tab", async ({ page }) => {
+  await noFonts(page)
+  await page.goto("/")
+  await page.getByRole("button", { name: /Help, setup/ }).click()
+  await page.getByRole("menuitem", { name: "Choose a step" }).click()
+  await page.getByRole("dialog", { name: /Set up your QMS/ }).getByRole("button", { name: "Start: Organization & Scope" }).click()
+  for (let i = 0; i < 5; i++) await tip(page).getByRole("button", { name: "Next", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Org chart" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: /Org chart/ })).toHaveAttribute("aria-selected", "true")
+  await tip(page).getByRole("button", { name: "Next", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Legal and permits" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: /Legal/ })).toHaveAttribute("aria-selected", "true")
 })
