@@ -155,3 +155,37 @@ test("each person sees only the steps their role can open", async ({ page }) => 
   await expect(page).toHaveURL(/qms\/organization/)
   await expect(page.getByRole("dialog", { name: "Where you stand" })).toContainText("Step 1 of 10")
 })
+
+test("no tip covers the part it is about, on any step", async ({ page }) => {
+  test.setTimeout(240_000)
+  await noFonts(page)
+  await page.goto("/")
+  await page.getByRole("button", { name: /Help, setup/ }).click()
+  await page.getByRole("menuitem", { name: /Start full guide/ }).click()
+  const panel = page.getByRole("dialog", { name: /Set up your QMS/ })
+  const overlaps: string[] = []
+  for (let i = 0; i < 120; i++) {
+    const t = tip(page)
+    await expect(t.or(panel).first()).toBeVisible()
+    if (await panel.isVisible()) break
+    await expect(t).toHaveCSS("visibility", "visible")
+    const heading = (await t.getByRole("heading").innerText()).trim()
+    const spot = page.locator("[data-guide-spot]")
+    if (await spot.count()) {
+      const a = (await t.boundingBox())!
+      const b = (await spot.boundingBox())!
+      const ix = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
+      const iy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
+      if (ix > 1 && iy > 1) overlaps.push(heading)
+      const vp = page.viewportSize()!
+      if (a.y < 0 || a.y + a.height > vp.height + 1) overlaps.push(`${heading} (off screen)`)
+    }
+    const end = t.getByRole("button", { name: /^(Next|Done, next step|Finish)$/ })
+    await end.click()
+    await expect(async () => {
+      const now = await tip(page).getByRole("heading").innerText({ timeout: 500 }).catch(() => "")
+      expect(now !== heading || (await panel.isVisible())).toBe(true)
+    }).toPass({ timeout: 10_000 })
+  }
+  expect(overlaps).toEqual([])
+})
